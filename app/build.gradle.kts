@@ -10,6 +10,16 @@ android {
             minorApiLevel = 1
         }
     }
+    packaging {
+        resources {
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+        }
+    }
 
     defaultConfig {
         applicationId = "com.example.trl"
@@ -19,6 +29,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val geminiKey = providers.gradleProperty("GEMINI_API_KEY").orElse("").get()
+
+        buildConfigField(
+            "String",
+            "GROQ_API_KEY",
+            "\"${project.findProperty("GROQ_API_KEY")}\""
+        )
     }
 
     buildTypes {
@@ -34,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -45,7 +64,13 @@ dependencies {
     implementation("androidx.camera:camera-view:1.4.2")
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
 
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
 
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
+    implementation("com.google.genai:google-genai:1.60.0")
+
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     implementation("com.google.guava:guava:33.2.1-android")
 

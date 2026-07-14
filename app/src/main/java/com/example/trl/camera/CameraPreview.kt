@@ -3,6 +3,9 @@ package com.example.trl.camera
 import android.annotation.SuppressLint
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
+
+import androidx.camera.core.ImageAnalysis
+
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
@@ -14,8 +17,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @SuppressLint("UnsafeOptInUsageError")
 @Composable
 fun CameraPreview(
-    modifier: Modifier = Modifier
-) {
+    modifier: Modifier = Modifier,
+    onTextDetected: (String) -> Unit
+){
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -33,9 +37,19 @@ fun CameraPreview(
                 val cameraProvider = cameraProviderFuture.get()
 
                 val preview = Preview.Builder().build()
+                val imageAnalysis =
+                    ImageAnalysis.Builder()
+                        .setBackpressureStrategy(
+                            ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
+                        )
+                        .build()
 
                 preview.surfaceProvider =
                     previewView.surfaceProvider
+                imageAnalysis.setAnalyzer(
+                    ContextCompat.getMainExecutor(context),
+                    com.example.trl.ocr.OCRAnalyzer(onTextDetected)
+                )
 
                 val cameraSelector =
                     CameraSelector.DEFAULT_BACK_CAMERA
@@ -47,7 +61,8 @@ fun CameraPreview(
                     cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
-                        preview
+                        preview,
+                        imageAnalysis
                     )
 
                 } catch (e: Exception) {
