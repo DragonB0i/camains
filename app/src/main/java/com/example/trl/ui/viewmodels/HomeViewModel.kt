@@ -16,31 +16,70 @@ class HomeViewModel : ViewModel() {
 
     private val _recognizedText =
         mutableStateOf("Waiting for question...")
-    val recognizedText: State<String> = _recognizedText
+
+    val recognizedText: State<String> =
+        _recognizedText
 
     private val _aiAnswer =
-        mutableStateOf("...")
-    val aiAnswer: State<String> = _aiAnswer
+        mutableStateOf("?")
+
+    val aiAnswer: State<String> =
+        _aiAnswer
+
+    private val _confidence =
+        mutableStateOf(0)
+
+    val confidence: State<Int> =
+        _confidence
 
     private val _isLoading =
         mutableStateOf(false)
-    val isLoading: State<Boolean> = _isLoading
+
+    val isLoading: State<Boolean> =
+        _isLoading
+
+    private val _ocrStatus =
+        mutableStateOf("ACTIVE")
+
+    val ocrStatus: State<String> =
+        _ocrStatus
+
+    private val _aiStatus =
+        mutableStateOf("IDLE")
+
+    val aiStatus: State<String> =
+        _aiStatus
+
+    private val _isFrozen =
+        mutableStateOf(false)
+
+    val isFrozen: State<Boolean> =
+        _isFrozen
 
     private var debounceJob: Job? = null
 
     private var lastQuestionHash = 0
 
+    private var isRequestRunning = false
+
     fun updateText(question: String) {
+
+        if (_isFrozen.value) {
+            Logger.d("Freeze Mode Active")
+            return
+        }
+
+        if (question == "SKIP") {
+            Logger.d("Non-MCQ ignored")
+            return
+        }
 
         _recognizedText.value = question
 
-        val normalized = normalize(question)
+        val normalized =
+            normalize(question)
 
-        if (normalized.isBlank())
-            return
-
-        if (_isLoading.value) {
-            Logger.d("Groq Busy")
+        if (normalized.isBlank()) {
             return
         }
 
@@ -50,10 +89,15 @@ class HomeViewModel : ViewModel() {
 
             delay(800)
 
-            val hash = normalized.hashCode()
+            val hash =
+                normalized.hashCode()
 
             if (hash == lastQuestionHash) {
-                Logger.d("Duplicate Question")
+
+                Logger.d(
+                    "Duplicate Question"
+                )
+
                 return@launch
             }
 
@@ -63,39 +107,149 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    private suspend fun askGroq(question: String) {
+    private suspend fun askGroq(
+        question: String
+    ) {
 
-        _isLoading.value = true
+        if (isRequestRunning) {
+
+            Logger.d(
+                "Groq already running"
+            )
+
+            return
+        }
 
         try {
 
-            Logger.d("==============================")
-            Logger.d("Sending to Groq")
+            isRequestRunning = true
+
+            _isLoading.value = true
+
+            _aiStatus.value =
+                "THINKING..."
+
+            Logger.d(
+                "======================"
+            )
+
+            Logger.d(
+                "Sending to Groq"
+            )
+
             Logger.d(question)
 
-            val answer = repository.getAnswer(question)
+            val answer =
+                repository.getAnswer(
+                    question
+                )
 
-            Logger.d("Groq Answer = $answer")
+            Logger.d(
+                "Groq Answer = $answer"
+            )
 
-            _aiAnswer.value = answer
+            _aiAnswer.value =
+                answer
 
-        } catch (e: Exception) {
+            _confidence.value =
+                calculateConfidence(
+                    question
+                )
 
-            Logger.e("Groq Error", e)
+            _aiStatus.value =
+                "DONE"
 
-        } finally {
+            activateFreezeMode()
+        }
 
-            _isLoading.value = false
+        catch (e: Exception) {
 
+            Logger.e(
+                "Groq Error",
+                e
+            )
+
+            _aiAnswer.value = "?"
+
+            _confidence.value = 0
+
+            _aiStatus.value =
+                "ERROR"
+        }
+
+        finally {
+
+            isRequestRunning =
+                false
+
+            _isLoading.value =
+                false
         }
     }
 
-    private fun normalize(text: String): String {
+    private fun activateFreezeMode() {
+
+        _isFrozen.value = true
+
+        _ocrStatus.value =
+            "FROZEN"
+
+        viewModelScope.launch {
+
+            delay(5000)
+
+            _isFrozen.value =
+                false
+
+            _ocrStatus.value =
+                "ACTIVE"
+        }
+    }
+
+    private fun calculateConfidence(
+        text: String
+    ): Int {
+
+        var score = 40
+
+        val optionCount =
+            Regex(
+                "[A-D][.)]",
+                RegexOption.IGNORE_CASE
+            )
+                .findAll(text)
+                .count()
+
+        score += optionCount * 10
+
+        if (text.contains("?")) {
+            score += 15
+        }
+
+        if (text.length > 60) {
+            score += 15
+        }
+
+        return score.coerceIn(
+            0,
+            100
+        )
+    }
+
+    private fun normalize(
+        text: String
+    ): String {
 
         return text
             .lowercase()
-            .replace(Regex("[^a-z0-9 ]"), "")
-            .replace(Regex("\\s+"), " ")
+            .replace(
+                Regex("[^a-z0-9 ]"),
+                ""
+            )
+            .replace(
+                Regex("\\s+"),
+                " "
+            )
             .trim()
     }
 }

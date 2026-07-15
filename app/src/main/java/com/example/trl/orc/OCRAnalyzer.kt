@@ -5,6 +5,7 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.example.trl.ai.Logger
+import com.example.trl.processing.QuestionExtractor
 import com.google.mlkit.vision.common.InputImage
 
 @OptIn(ExperimentalGetImage::class)
@@ -32,41 +33,39 @@ class OCRAnalyzer(
 
         processor.process(image) { raw ->
 
-            try {
+            Logger.d("RAW OCR")
+            Logger.d(raw)
 
-                Logger.d("==============================")
-                Logger.d("RAW OCR")
-                Logger.d(raw)
+            val cleaned =
+                OCRCleaner.clean(raw)
 
-                val cleaned = OCRCleaner.clean(raw)
+            val extracted =
+                QuestionExtractor.extract(cleaned)
 
-                Logger.d("------------------------------")
-                Logger.d("CLEANED OCR")
-                Logger.d(cleaned)
+            Logger.d("QUESTION")
+            Logger.d(extracted)
 
-                if (cleaned.isBlank()) {
+            if (extracted.isBlank()) {
 
-                    Logger.d("Blank OCR")
-
-                    return@process
-                }
-
-                if (!duplicateFilter.shouldProcess(cleaned)) {
-
-                    Logger.d("Duplicate OCR")
-
-                    return@process
-                }
-
-                Logger.d("Sending OCR to ViewModel")
-
-                onQuestionDetected(cleaned)
-
-            } finally {
+                Logger.d("Blank OCR")
 
                 imageProxy.close()
-
+                return@process
             }
+
+            if (!duplicateFilter.shouldProcess(extracted)) {
+
+                Logger.d("Duplicate OCR")
+
+                imageProxy.close()
+                return@process
+            }
+
+            Logger.d("Sending OCR to ViewModel")
+
+            onQuestionDetected(extracted)
+
+            imageProxy.close()
         }
     }
 }
