@@ -1,7 +1,7 @@
 package com.example.trl.ocr
 
 import android.graphics.Rect
-import android.util.Log
+import com.example.trl.camera.AutoZoomManager
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -11,22 +11,34 @@ class OCRProcessor {
 
     private val recognizer =
         TextRecognition.getClient(
-            TextRecognizerOptions.DEFAULT_OPTIONS
+            TextRecognizerOptions
+                .DEFAULT_OPTIONS
         )
 
-    private val TOP_CUTOFF = 0.20f
-    private val BOTTOM_CUTOFF = 0.80f
+    private val TOP_CUTOFF =
+        0.20f
+
+    private val BOTTOM_CUTOFF =
+        0.80f
 
     fun process(
+
         image: InputImage,
-        onSuccess: (String) -> Unit
+
+        onSuccess:
+            (
+            String,
+            List<Rect>
+        ) -> Unit
+
     ) {
 
-        recognizer.process(image)
+        recognizer
+            .process(image)
 
-            .addOnSuccessListener { result ->
+            .addOnSuccessListener {
 
-                logBoundingBoxes(result)
+                    result ->
 
                 val filteredText =
                     applyRegionFilter(
@@ -34,18 +46,31 @@ class OCRProcessor {
                         image.height
                     )
 
-                onSuccess(filteredText)
+                val boxes =
+                    result.textBlocks
+                        .mapNotNull {
+                            it.boundingBox
+                        }
+
+                OCRState.update(
+                    boxes
+                )
+
+                AutoZoomManager
+                    .update()
+
+                onSuccess(
+                    filteredText,
+                    boxes
+                )
             }
 
             .addOnFailureListener {
 
-                Log.e(
-                    "AIQuizScanner",
-                    "OCR Failed",
-                    it
+                onSuccess(
+                    "",
+                    emptyList()
                 )
-
-                onSuccess("")
             }
     }
 
@@ -55,169 +80,49 @@ class OCRProcessor {
     ): String {
 
         val top =
-            (imageHeight * TOP_CUTOFF).toInt()
+            (
+                    imageHeight *
+                            TOP_CUTOFF
+                    ).toInt()
 
         val bottom =
-            (imageHeight * BOTTOM_CUTOFF).toInt()
+            (
+                    imageHeight *
+                            BOTTOM_CUTOFF
+                    ).toInt()
 
-        Log.d(
-            "AIQuizScanner",
-            "======== REGION FILTER ========"
-        )
-
-        Log.d(
-            "AIQuizScanner",
-            "TOP    = $top"
-        )
-
-        Log.d(
-            "AIQuizScanner",
-            "BOTTOM = $bottom"
-        )
-
-        val keptBlocks =
+        val kept =
             mutableListOf<String>()
 
-        result.textBlocks.forEach { block ->
+        result.textBlocks
+            .forEach {
 
-            val rect =
-                block.boundingBox
+                val rect =
+                    it.boundingBox
+                        ?: return@forEach
 
-            if (rect == null)
-                return@forEach
+                val center =
+                    (
+                            rect.top +
+                                    rect.bottom
+                            ) / 2
 
-            val centerY =
-                (rect.top + rect.bottom) / 2
+                if (
 
-            if (
-                centerY >= top &&
-                centerY <= bottom
-            ) {
+                    center >= top &&
+                    center <= bottom
 
-                Log.d(
-                    "AIQuizScanner",
-                    "KEEPING BLOCK"
-                )
+                ) {
 
-                Log.d(
-                    "AIQuizScanner",
-                    block.text
-                )
-
-                keptBlocks.add(
-                    block.text
-                )
-
-            } else {
-
-                Log.d(
-                    "AIQuizScanner",
-                    "REMOVING BLOCK"
-                )
-
-                Log.d(
-                    "AIQuizScanner",
-                    block.text
-                )
-            }
-        }
-
-        Log.d(
-            "AIQuizScanner",
-            "==============================="
-        )
-
-        return keptBlocks
-            .joinToString("\n")
-    }
-
-    private fun logBoundingBoxes(
-        result: Text
-    ) {
-
-        Log.d(
-            "AIQuizScanner",
-            "========== BOUNDING BOXES =========="
-        )
-
-        result.textBlocks.forEachIndexed { blockIndex, block ->
-
-            Log.d(
-                "AIQuizScanner",
-                "BLOCK #$blockIndex"
-            )
-
-            Log.d(
-                "AIQuizScanner",
-                "TEXT : ${block.text}"
-            )
-
-            logRect(
-                block.boundingBox
-            )
-
-            block.lines.forEachIndexed { lineIndex, line ->
-
-                Log.d(
-                    "AIQuizScanner",
-                    "LINE #$lineIndex"
-                )
-
-                Log.d(
-                    "AIQuizScanner",
-                    line.text
-                )
-
-                logRect(
-                    line.boundingBox
-                )
-
-                line.elements.forEachIndexed { elementIndex, element ->
-
-                    Log.d(
-                        "AIQuizScanner",
-                        "ELEMENT #$elementIndex"
-                    )
-
-                    Log.d(
-                        "AIQuizScanner",
-                        element.text
-                    )
-
-                    logRect(
-                        element.boundingBox
+                    kept.add(
+                        it.text
                     )
                 }
             }
-        }
 
-        Log.d(
-            "AIQuizScanner",
-            "===================================="
-        )
-    }
-
-    private fun logRect(
-        rect: Rect?
-    ) {
-
-        if (rect == null) {
-
-            Log.d(
-                "AIQuizScanner",
-                "BoundingBox = NULL"
+        return kept
+            .joinToString(
+                "\n"
             )
-
-            return
-        }
-
-        Log.d(
-            "AIQuizScanner",
-            "Rect(" +
-                    "${rect.left}, " +
-                    "${rect.top}, " +
-                    "${rect.right}, " +
-                    "${rect.bottom})"
-        )
     }
 }

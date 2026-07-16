@@ -2,19 +2,16 @@ package com.example.trl.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Card
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.trl.camera.CameraPermission
 import com.example.trl.camera.CameraPreview
+import com.example.trl.camera.CameraPermission
+import com.example.trl.ui.components.*
 import com.example.trl.ui.viewmodel.HomeViewModel
 
 @Composable
@@ -25,7 +22,12 @@ fun HomeScreen() {
     val question by vm.recognizedText
     val answer by vm.aiAnswer
     val confidence by vm.confidence
+
+    val modelsUsed by vm.modelsUsed
+    val judgeUsed by vm.judgeUsed
+
     val frozen by vm.isFrozen
+
     val ocrStatus by vm.ocrStatus
     val aiStatus by vm.aiStatus
 
@@ -35,6 +37,16 @@ fun HomeScreen() {
             modifier = Modifier.fillMaxSize()
         ) {
 
+            /*
+             * CYBER GRID
+             */
+
+            CyberBackground()
+
+            /*
+             * CAMERA
+             */
+
             CameraPreview(
                 modifier = Modifier.fillMaxSize(),
                 onTextDetected = {
@@ -43,33 +55,44 @@ fun HomeScreen() {
             )
 
             /*
-             * TOP STATUS
+             * OCR VISUALIZATION
              */
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            HeatmapOverlay()
 
-                Text(
-                    text = "OCR : $ocrStatus",
-                    color = Color.White
-                )
-
-                Spacer(
-                    modifier = Modifier.height(6.dp)
-                )
-
-                Text(
-                    text = "AI : $aiStatus",
-                    color = Color.White
-                )
-            }
+            FocusOverlay()
 
             /*
-             * HUGE ANSWER OVERLAY
+             * SCAN LINE
+             */
+
+            ScanLine()
+
+            /*
+             * DARK FILTER
+             */
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Color.Black.copy(
+                            alpha = 0.22f
+                        )
+                    )
+            )
+
+            /*
+             * STATUS BAR
+             */
+
+            StatusBar(
+                ocr = ocrStatus,
+                ai = aiStatus
+            )
+
+            /*
+             * CENTER HUD
              */
 
             Box(
@@ -77,91 +100,73 @@ fun HomeScreen() {
                 contentAlignment = Alignment.Center
             ) {
 
-                Box(
-                    modifier = Modifier
-                        .background(
-                            Color.Black.copy(alpha = 0.55f)
-                        )
-                        .padding(
-                            horizontal = 40.dp,
-                            vertical = 20.dp
-                        )
+                Column(
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
                 ) {
 
-                    Text(
-                        text = answer,
-                        fontSize = 100.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when (answer) {
+                    AnswerOverlay(
+                        answer = answer,
+                        confidence = confidence
+                    )
 
-                            "A" -> Color.Green
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                20.dp
+                            )
+                    )
 
-                            "B" -> Color.Blue
+                    ConfidenceRing(
+                        confidence
+                    )
 
-                            "C" -> Color(0xFFFFA500)
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                20.dp
+                            )
+                    )
 
-                            "D" -> Color.Red
+                    ZoomIndicator()
 
-                            else -> Color.White
-                        }
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                20.dp
+                            )
+                    )
+
+                    FreezeBadge(
+                        frozen
                     )
                 }
             }
 
             /*
-             * BOTTOM PANEL
+             * BOTTOM TERMINAL
              */
 
-            Card(
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(
+                        Alignment.BottomCenter
+                    )
                     .padding(16.dp)
+                    .fillMaxWidth(
+                        0.95f
+                    )
             ) {
 
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-
-                    Text(
-                        text = "QUESTION",
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(
-                        modifier = Modifier.height(8.dp)
-                    )
-
-                    Text(
-                        text = question
-                    )
-
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
-
-                    Text(
-                        text = "Confidence : $confidence%"
-                    )
-
-                    Spacer(
-                        modifier = Modifier.height(8.dp)
-                    )
-
-                    Text(
-                        text = if (frozen) {
-                            "FREEZE MODE"
-                        } else {
-                            "LIVE OCR"
-                        },
-                        color = if (frozen) {
-                            Color.Red
-                        } else {
-                            Color.Green
-                        }
-                    )
-                }
+                BottomPanel(
+                    question = question,
+                    answer = answer,
+                    confidence = confidence,
+                    modelsUsed = modelsUsed,
+                    judgeUsed = judgeUsed,
+                    frozen = frozen
+                )
             }
         }
     }
-
 }

@@ -32,6 +32,20 @@ class HomeViewModel : ViewModel() {
     val confidence: State<Int> =
         _confidence
 
+    // NEW
+    private val _modelsUsed =
+        mutableStateOf(0)
+
+    val modelsUsed: State<Int> =
+        _modelsUsed
+
+    // NEW
+    private val _judgeUsed =
+        mutableStateOf(false)
+
+    val judgeUsed: State<Boolean> =
+        _judgeUsed
+
     private val _isLoading =
         mutableStateOf(false)
 
@@ -76,8 +90,7 @@ class HomeViewModel : ViewModel() {
 
         _recognizedText.value = question
 
-        val normalized =
-            normalize(question)
+        val normalized = normalize(question)
 
         if (normalized.isBlank()) {
             return
@@ -89,14 +102,11 @@ class HomeViewModel : ViewModel() {
 
             delay(800)
 
-            val hash =
-                normalized.hashCode()
+            val hash = normalized.hashCode()
 
             if (hash == lastQuestionHash) {
 
-                Logger.d(
-                    "Duplicate Question"
-                )
+                Logger.d("Duplicate Question")
 
                 return@launch
             }
@@ -113,9 +123,7 @@ class HomeViewModel : ViewModel() {
 
         if (isRequestRunning) {
 
-            Logger.d(
-                "Groq already running"
-            )
+            Logger.d("Groq already running")
 
             return
         }
@@ -126,40 +134,49 @@ class HomeViewModel : ViewModel() {
 
             _isLoading.value = true
 
-            _aiStatus.value =
-                "THINKING..."
+            _aiStatus.value = "THINKING..."
 
-            Logger.d(
-                "======================"
-            )
+            Logger.d("======================")
 
-            Logger.d(
-                "Sending to Groq"
-            )
+            Logger.d("Sending to Groq")
 
             Logger.d(question)
 
-            val answer =
-                repository.getAnswer(
-                    question
-                )
+            val result =
+                repository.getAnswer(question)
 
             Logger.d(
-                "Groq Answer = $answer"
+                "Answer = ${result.answer}"
+            )
+
+            Logger.d(
+                "Confidence = ${result.confidence}"
+            )
+
+            Logger.d(
+                "Models Used = ${result.modelsUsed}"
+            )
+
+            Logger.d(
+                "Judge Used = ${result.judgeUsed}"
             )
 
             _aiAnswer.value =
-                answer
+                result.answer
 
             _confidence.value =
-                calculateConfidence(
-                    question
-                )
+                result.confidence
 
-            _aiStatus.value =
-                "DONE"
+            _modelsUsed.value =
+                result.modelsUsed
+
+            _judgeUsed.value =
+                result.judgeUsed
+
+            _aiStatus.value = "DONE"
 
             activateFreezeMode()
+
         }
 
         catch (e: Exception) {
@@ -173,17 +190,18 @@ class HomeViewModel : ViewModel() {
 
             _confidence.value = 0
 
-            _aiStatus.value =
-                "ERROR"
+            _modelsUsed.value = 0
+
+            _judgeUsed.value = false
+
+            _aiStatus.value = "ERROR"
         }
 
         finally {
 
-            isRequestRunning =
-                false
+            isRequestRunning = false
 
-            _isLoading.value =
-                false
+            _isLoading.value = false
         }
     }
 
@@ -191,49 +209,16 @@ class HomeViewModel : ViewModel() {
 
         _isFrozen.value = true
 
-        _ocrStatus.value =
-            "FROZEN"
+        _ocrStatus.value = "FROZEN"
 
         viewModelScope.launch {
 
             delay(5000)
 
-            _isFrozen.value =
-                false
+            _isFrozen.value = false
 
-            _ocrStatus.value =
-                "ACTIVE"
+            _ocrStatus.value = "ACTIVE"
         }
-    }
-
-    private fun calculateConfidence(
-        text: String
-    ): Int {
-
-        var score = 40
-
-        val optionCount =
-            Regex(
-                "[A-D][.)]",
-                RegexOption.IGNORE_CASE
-            )
-                .findAll(text)
-                .count()
-
-        score += optionCount * 10
-
-        if (text.contains("?")) {
-            score += 15
-        }
-
-        if (text.length > 60) {
-            score += 15
-        }
-
-        return score.coerceIn(
-            0,
-            100
-        )
     }
 
     private fun normalize(

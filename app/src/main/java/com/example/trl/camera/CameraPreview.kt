@@ -2,10 +2,8 @@ package com.example.trl.camera
 
 import android.annotation.SuppressLint
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-
 import androidx.camera.core.ImageAnalysis
-
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
@@ -19,60 +17,98 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun CameraPreview(
     modifier: Modifier = Modifier,
     onTextDetected: (String) -> Unit
-){
+) {
 
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner =
+        LocalLifecycleOwner.current
 
     AndroidView(
+
         modifier = modifier,
+
         factory = { context ->
 
-            val previewView = PreviewView(context)
+            val previewView =
+                PreviewView(context)
 
             val cameraProviderFuture =
-                ProcessCameraProvider.getInstance(context)
+                ProcessCameraProvider
+                    .getInstance(context)
 
-            cameraProviderFuture.addListener({
+            cameraProviderFuture
+                .addListener({
 
-                val cameraProvider = cameraProviderFuture.get()
+                    val cameraProvider =
+                        cameraProviderFuture.get()
 
-                val preview = Preview.Builder().build()
-                val imageAnalysis =
-                    ImageAnalysis.Builder()
-                        .setBackpressureStrategy(
-                            ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
-                        )
-                        .build()
+                    val preview =
+                        Preview.Builder()
+                            .build()
 
-                preview.surfaceProvider =
-                    previewView.surfaceProvider
-                imageAnalysis.setAnalyzer(
-                    ContextCompat.getMainExecutor(context),
-                    com.example.trl.ocr.OCRAnalyzer(onTextDetected)
-                )
+                    val imageAnalysis =
+                        ImageAnalysis.Builder()
 
-                val cameraSelector =
-                    CameraSelector.DEFAULT_BACK_CAMERA
+                            .setBackpressureStrategy(
+                                ImageAnalysis
+                                    .STRATEGY_KEEP_ONLY_LATEST
+                            )
 
-                try {
+                            .build()
 
-                    cameraProvider.unbindAll()
+                    preview.surfaceProvider =
+                        previewView.surfaceProvider
 
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        imageAnalysis
+                    imageAnalysis.setAnalyzer(
+
+                        ContextCompat
+                            .getMainExecutor(
+                                context
+                            ),
+
+                        com.example.trl.ocr
+                            .OCRAnalyzer(
+                                onTextDetected
+                            )
                     )
 
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                    val selector =
+                        CameraSelector
+                            .DEFAULT_BACK_CAMERA
 
-            }, ContextCompat.getMainExecutor(context))
+                    try {
+
+                        cameraProvider
+                            .unbindAll()
+
+                        val camera =
+                            cameraProvider
+                                .bindToLifecycle(
+
+                                    lifecycleOwner,
+
+                                    selector,
+
+                                    preview,
+
+                                    imageAnalysis
+                                )
+
+                        CameraController
+                            .camera = camera
+
+                    } catch (e: Exception) {
+
+                        e.printStackTrace()
+                    }
+
+                },
+                    ContextCompat
+                        .getMainExecutor(
+                            context
+                        )
+                )
 
             previewView
         }
     )
-
 }
